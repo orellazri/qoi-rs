@@ -16,7 +16,7 @@ This will generate a `.qoi` output file.
 
 ## Generate test images
 
-To turn a png into a raw image, use `qoiconv.c` from the reference implementation, but add these lines to the last conditions that check the file format:
+To turn a png into a raw image, use `qoiconv.c` from the [reference implementation](https://github.com/phoboslab/qoi), but add these lines to the last conditions that check the file format:
 
 ```c
 } else if (STR_ENDS_WITH(argv[2], ".raw")) {
