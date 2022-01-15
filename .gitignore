@@ -1,0 +1,5 @@
+/target
+reference/
+*.png
+*.qoi
+*.raw
