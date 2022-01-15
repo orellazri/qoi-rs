@@ -1,7 +1,9 @@
+use clap::Parser;
 use std::{
     fs,
     io::{Cursor, Read},
     ops::Sub,
+    path::Path,
 };
 
 const QOI_HEADER_SIZE: usize = 14;
@@ -42,15 +44,25 @@ fn write32(bytes: &mut Vec<u8>, data: u32) {
     bytes.push((data & 0x000000ff) as u8);
 }
 
+#[derive(Parser, Debug)]
+struct Args {
+    input_filename: String,
+    width: u32,
+    height: u32,
+    channels: u8,
+}
+
 fn main() {
-    let buffer = fs::read("input.raw").unwrap();
+    let args = Args::parse();
+    let input_filename = args.input_filename;
+    let width: u32 = args.width;
+    let height: u32 = args.height;
+    let channels: u8 = args.channels;
+    let colorspace: u8 = 1;
+
+    let buffer = fs::read(&input_filename).unwrap();
     let buffer_len = buffer.len();
     let mut buffer = Cursor::new(buffer);
-
-    let width: u32 = 145;
-    let height: u32 = 142;
-    let channels: u8 = 4;
-    let colorspace: u8 = 1;
 
     let mut bytes: Vec<u8> = Vec::with_capacity(
         width as usize * height as usize * (channels as usize + 1)
@@ -170,5 +182,10 @@ fn main() {
 
     QOI_END_MARKER.iter().for_each(|byte| bytes.push(*byte));
 
-    fs::write("output-rs.qoi", bytes).unwrap();
+    let file_stem = Path::new(&input_filename)
+        .file_stem()
+        .unwrap()
+        .to_str()
+        .unwrap();
+    fs::write(format!("{}.qoi", file_stem), bytes).unwrap();
 }
