@@ -1,6 +1,6 @@
 use std::{
-    fs,
-    io::{Cursor, Read},
+    fs::{self, File},
+    io::{Cursor, Read, Write},
     ops::Sub,
     path::Path,
 };
@@ -15,6 +15,9 @@ const QOI_OP_DIFF: u8 = 0x40;
 const QOI_OP_LUMA: u8 = 0x80;
 const QOI_OP_RGB: u8 = 0xfe;
 const QOI_OP_RGBA: u8 = 0xff;
+
+const QOI_CHUNK_MASK: u8 = 0xc0;
+const QOI_LOWER_SIX: u8 = 0x3f;
 
 #[derive(Copy, Clone, PartialEq)]
 struct Color {
@@ -41,6 +44,24 @@ fn write32(bytes: &mut Vec<u8>, data: u32) {
     bytes.push(((data & 0x00ff0000) >> 16) as u8);
     bytes.push(((data & 0x0000ff00) >> 8) as u8);
     bytes.push((data & 0x000000ff) as u8);
+}
+
+fn read32(bytes: &mut Vec<u8>) -> u32 {
+    let mut data = 0u32;
+    data = ((bytes.pop().unwrap() as u32) << 24)
+        | ((bytes.pop().unwrap() as u32) << 16)
+        | ((bytes.pop().unwrap() as u32) << 8)
+        | (bytes.pop().unwrap() as u32);
+    data
+}
+
+fn mark_pixel_seen(seen_pixels: &mut [Color], color: Color) {
+    let index_position = ((color.r as usize * 3)
+        + (color.g as usize * 5)
+        + (color.b as usize) * 7
+        + (color.a as usize) * 11)
+        % 64;
+    seen_pixels[index_position] = color;
 }
 
 pub fn encode(input_filename: &str, width: u32, height: u32, channels: u8, colorspace: u8) {
@@ -174,10 +195,114 @@ pub fn encode(input_filename: &str, width: u32, height: u32, channels: u8, color
     fs::write(format!("{}.qoi", file_stem), bytes).unwrap();
 }
 
-pub fn decode(input_filename: &str, width: u32, height: u32, channels: u8, colorspace: u8) {
-    let buffer = fs::read(&input_filename).unwrap();
-    let buffer_len = buffer.len();
-    let mut buffer = Cursor::new(buffer);
+pub fn decode(input_filename: &str) {
+    let mut buffer = fs::read(&input_filename).unwrap();
+    buffer.reverse();
 
-    println!("{}", buffer_len);
+    // Read header
+    buffer.pop().unwrap();
+    buffer.pop().unwrap();
+    buffer.pop().unwrap();
+    buffer.pop().unwrap();
+
+    let width: u32 = read32(&mut buffer);
+    let height: u32 = read32(&mut buffer);
+    let channels: u8 = buffer.pop().unwrap();
+    let colorspace: u8 = buffer.pop().unwrap();
+
+    let pixels_len = width as usize * height as usize * channels as usize;
+    let mut pixels: Vec<Color> = Vec::with_capacity(pixels_len);
+
+    let mut prev_color = Color {
+        r: 0,
+        g: 0,
+        b: 0,
+        a: 255,
+    };
+
+    let mut seen_pixels = [Color {
+        r: 0,
+        g: 0,
+        b: 0,
+        a: 0,
+    }; 64];
+
+    while !buffer.is_empty() {
+        let byte = buffer.pop().unwrap();
+
+        if byte == QOI_OP_RGB {
+            prev_color.r = buffer.pop().unwrap();
+            prev_color.g = buffer.pop().unwrap();
+            prev_color.b = buffer.pop().unwrap();
+
+            pixels.push(prev_color);
+            mark_pixel_seen(&mut seen_pixels, prev_color);
+            continue;
+        }
+
+        if byte == QOI_OP_RGBA {
+            prev_color.r = buffer.pop().unwrap();
+            prev_color.g = buffer.pop().unwrap();
+            prev_color.b = buffer.pop().unwrap();
+            prev_color.a = buffer.pop().unwrap();
+
+            pixels.push(prev_color);
+            mark_pixel_seen(&mut seen_pixels, prev_color);
+            continue;
+        }
+
+        if (byte & QOI_CHUNK_MASK) == QOI_OP_RUN {
+            let run_length = (byte & QOI_LOWER_SIX) + 1;
+            for _ in 0..run_length {
+                pixels.push(prev_color);
+            }
+
+            continue;
+        }
+
+        if (byte & QOI_CHUNK_MASK) == QOI_OP_INDEX {
+            let index = byte & QOI_LOWER_SIX;
+            let color = seen_pixels[index as usize];
+            pixels.push(color);
+            continue;
+        }
+
+        if (byte & QOI_CHUNK_MASK) == QOI_OP_DIFF {
+            let dr = (byte & 0x30) + 2;
+            let dg = (byte & 0x0c) + 2;
+            let db = (byte & 0x03) + 2;
+
+            prev_color.r += dr;
+            prev_color.g += dg;
+            prev_color.b += db;
+            pixels.push(prev_color);
+            mark_pixel_seen(&mut seen_pixels, prev_color);
+            continue;
+        }
+
+        if (byte & QOI_CHUNK_MASK) == QOI_OP_LUMA {
+            let byte2 = buffer.pop().unwrap();
+            let dg = (byte & 0x3f) + 32;
+            let dr_dg = (byte2 & 0xf0) + 8;
+            let db_dg = (byte2 & 0x0f) + 8;
+
+            let dr = dr_dg + dg;
+            let db = db_dg + dg;
+
+            prev_color.r += dr;
+            prev_color.g += dg;
+            prev_color.b += db;
+
+            pixels.push(prev_color);
+            mark_pixel_seen(&mut seen_pixels, prev_color);
+            continue;
+        }
+    }
+
+    let mut output = File::create("test-output.raw").unwrap();
+    for pixel in pixels {
+        output
+            .write_all(&[pixel.r, pixel.g, pixel.b, pixel.a])
+            .unwrap();
+    }
 }

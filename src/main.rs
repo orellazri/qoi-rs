@@ -28,6 +28,6 @@ fn main() {
 
     match action {
         Action::Encode => encode(&input_filename, width, height, channels, colorspace),
-        Action::Decode => decode(&input_filename, width, height, channels, colorspace),
+        Action::Decode => decode(&input_filename),
     }
 }
