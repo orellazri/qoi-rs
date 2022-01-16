@@ -206,7 +206,7 @@ pub fn decode(input_filename: &str) {
     let width: u32 = read32(&mut buffer);
     let height: u32 = read32(&mut buffer);
     let channels: u8 = buffer.pop().unwrap();
-    // let colorspace: u8 = buffer.pop().unwrap();
+    let _colorspace: u8 = buffer.pop().unwrap();
 
     let pixels_len = width as usize * height as usize * channels as usize;
     let mut pixels: Vec<Color> = Vec::with_capacity(pixels_len);
