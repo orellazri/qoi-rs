@@ -47,12 +47,10 @@ fn write32(bytes: &mut Vec<u8>, data: u32) {
 }
 
 fn read32(bytes: &mut Vec<u8>) -> u32 {
-    let mut data = 0u32;
-    data = ((bytes.pop().unwrap() as u32) << 24)
+    ((bytes.pop().unwrap() as u32) << 24)
         | ((bytes.pop().unwrap() as u32) << 16)
         | ((bytes.pop().unwrap() as u32) << 8)
-        | (bytes.pop().unwrap() as u32);
-    data
+        | (bytes.pop().unwrap() as u32)
 }
 
 fn mark_pixel_seen(seen_pixels: &mut [Color], color: Color) {
@@ -208,7 +206,7 @@ pub fn decode(input_filename: &str) {
     let width: u32 = read32(&mut buffer);
     let height: u32 = read32(&mut buffer);
     let channels: u8 = buffer.pop().unwrap();
-    let colorspace: u8 = buffer.pop().unwrap();
+    // let colorspace: u8 = buffer.pop().unwrap();
 
     let pixels_len = width as usize * height as usize * channels as usize;
     let mut pixels: Vec<Color> = Vec::with_capacity(pixels_len);
@@ -303,7 +301,12 @@ pub fn decode(input_filename: &str) {
         }
     }
 
-    let mut output = File::create("test-output.raw").unwrap();
+    let file_stem = Path::new(&input_filename)
+        .file_stem()
+        .unwrap()
+        .to_str()
+        .unwrap();
+    let mut output = File::create(format!("{}.raw", file_stem)).unwrap();
     for pixel in pixels {
         output
             .write_all(&[pixel.r, pixel.g, pixel.b, pixel.a])
