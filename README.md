@@ -9,7 +9,7 @@ Rust implementation of the [QOI (Quite OK) Image Format](https://qoiformat.org/)
 Build with `cargo build`. Run with `cargo run` or with the executable generated from the build.
 
 ```sh
-./qoi-rs <input file> <width> <height> <channels (3/4)>
+./qoi-rs <action - encode/decode> <input file> <width> <height> <channels (3/4)>
 ```
 
 This will generate a `.qoi` output file.
