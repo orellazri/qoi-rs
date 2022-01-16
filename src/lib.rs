@@ -264,13 +264,17 @@ pub fn decode(input_filename: &str) {
             let index = byte & QOI_LOWER_SIX;
             let color = seen_pixels[index as usize];
             pixels.push(color);
+            prev_color.r = color.r;
+            prev_color.g = color.g;
+            prev_color.b = color.b;
+            prev_color.a = color.a;
             continue;
         }
 
         if (byte & QOI_CHUNK_MASK) == QOI_OP_DIFF {
-            let dr = (byte & 0x30) + 2;
-            let dg = (byte & 0x0c) + 2;
-            let db = (byte & 0x03) + 2;
+            let dr = ((byte & 0x30) >> 4) - 2;
+            let dg = ((byte & 0x0c) >> 2) - 2;
+            let db = (byte & 0x03) - 2;
 
             prev_color.r += dr;
             prev_color.g += dg;
@@ -282,9 +286,9 @@ pub fn decode(input_filename: &str) {
 
         if (byte & QOI_CHUNK_MASK) == QOI_OP_LUMA {
             let byte2 = buffer.pop().unwrap();
-            let dg = (byte & 0x3f) + 32;
-            let dr_dg = (byte2 & 0xf0) + 8;
-            let db_dg = (byte2 & 0x0f) + 8;
+            let dg = (byte & 0x3f) - 32;
+            let dr_dg = ((byte2 & 0xf0) >> 4) - 8;
+            let db_dg = (byte2 & 0x0f) - 8;
 
             let dr = dr_dg + dg;
             let db = db_dg + dg;
