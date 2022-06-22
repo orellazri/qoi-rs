@@ -1,4 +1,4 @@
-# qoi-rs
+#  qoi-rs
 
 Rust implementation of the [QOI (Quite OK) Image Format](https://qoiformat.org/) following the [File Format Specifications](https://qoiformat.org/qoi-specification.pdf).
 
